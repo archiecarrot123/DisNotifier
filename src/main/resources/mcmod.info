@@ -1,0 +1,16 @@
+[
+{
+  "modid": "DisNotifier",
+  "name": "DisNotifier",
+  "description": "This mod is a servr side only mod that is config customizzable.\nIt can send a Discord message when a Minecraft server is being loaded or is going to close.\n\nAs said before, this is a server side only mod, so if you're viewing this text in a client, the mod is disabled.",
+  "version": "${version}",
+  "mcversion": "${mcversion}",
+  "url": "",
+  "updateUrl": "",
+  "authorList": ["Antonio225"],
+  "credits": "anatawa12 for modding on 1.7.10, Discord and Forge guys.",
+  "logoFile": "",
+  "screenshots": [],
+  "dependencies": []
+}
+]
