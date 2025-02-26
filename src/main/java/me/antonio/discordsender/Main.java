@@ -37,7 +37,7 @@ import org.apache.logging.log4j.Logger;
 @Mod(modid=Main.MODID,version=Main.VERSION,name="DisNotifier")
 public class Main {
 	public static final String MODID = "DisNotifier";
-	public static final String VERSION = "1.1";
+	public static final String VERSION = Tags.VERSION;
 	public static final Logger Logger = LogManager.getLogger(MODID);
 	
 	public Configuration config;
