@@ -22,6 +22,7 @@ import org.apache.logging.log4j.LogManager;
 
 import net.minecraftforge.common.config.Configuration;
 import cpw.mods.fml.common.Mod;
+import cpw.mods.fml.common.FMLCommonHandler;
 import cpw.mods.fml.common.Mod.EventHandler;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
@@ -29,34 +30,41 @@ import cpw.mods.fml.common.event.FMLServerStartedEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
 import cpw.mods.fml.common.event.FMLServerStoppedEvent;
 import cpw.mods.fml.common.event.FMLServerStoppingEvent;
+import cpw.mods.fml.common.eventhandler.SubscribeEvent;
+import cpw.mods.fml.common.gameevent.PlayerEvent;
+import net.minecraft.entity.player.EntityPlayerMP;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
 import org.apache.logging.log4j.Logger;
 
-@Mod(modid=Main.MODID,version=Main.VERSION,name="DisNotifier")
+@Mod(modid=Main.MODID,version=Main.VERSION,name="DisNotifier",acceptableRemoteVersions = "*")
 public class Main {
     public static final String MODID = "DisNotifier";
     public static final String VERSION = Tags.VERSION;
     public static final Logger Logger = LogManager.getLogger(MODID);
 	
-    public Configuration config;
+    public static Configuration config;
 	
-    public Boolean sendMessageOnBooting;
-    public Boolean sendMessageOnBoot;
-    public Boolean sendMessageOnShuttingDown;
-    public Boolean sendMessageOnShutDown;
+    public static Boolean sendMessageOnBooting;
+    public static Boolean sendMessageOnBoot;
+    public static Boolean sendMessageOnShuttingDown;
+    public static Boolean sendMessageOnShutDown;
+    public static Boolean sendMessageOnJoin;
+    public static Boolean sendMessageOnLeave;
 	
-    public String loadingMessage;
-    public String loadedMessage;
-    public String shuttingMessage;
-    public String shutMessage;
+    public static String loadingMessage;
+    public static String loadedMessage;
+    public static String shuttingMessage;
+    public static String shutMessage;
+    public static String joinMessage;
+    public static String leaveMessage;
 	
-    public String webhook;
-    public String username;
-    public String avatarUrl;
-    public Boolean editSended;
-    public long messageID;
+    public static String webhook;
+    public static String username;
+    public static String avatarUrl;
+    public static Boolean editSended;
+    public static long messageID;
 	
     public Boolean sendLoadingPingMessage;
     public String loadingPingMessage;
@@ -71,11 +79,12 @@ public class Main {
     public String shutPingMessage;
     public int shutPingMessageWait;
 	
-    public double onlineTime = 0;
-    public double offlineTime = 0;
-    public String messageL = "";
+    public static double onlineTime = 0;
+    public static double offlineTime = 0;
+    public static String playerName = "";
+    public static String messageL = "";
 	
-    public long send(String username, String avatar, String method, String link, String message) throws IOException {
+    public static long send(String username, String avatar, String method, String link, String message) throws IOException {
 	String userAgent = "Mozilla/5.0";
 	try {
 	    HttpURLConnection con = (HttpURLConnection) (new URL(link + "?wait=true")).openConnection();
@@ -85,11 +94,11 @@ public class Main {
 	    if (method == "POST" || method == "PATCH") {
 		con.setDoOutput(true);
 		OutputStream os = con.getOutputStream();
-		this.messageL = ("{"
+		messageL = ("{"
 				 + (username.trim().length() > 0 ? "\"username\":\"" + username + "\"," : "")
 				 + (avatar.trim().length() > 0 ? "\"avatar_url\":\"" + avatar + "\"," : "")
 				 + message.trim().substring(1));
-		os.write(this.messageL.getBytes(StandardCharsets.UTF_8));
+		os.write(messageL.getBytes(StandardCharsets.UTF_8));
 		os.flush();
 		os.close();
 	    }
@@ -114,10 +123,11 @@ public class Main {
 	return 0;
     }
 	
-    public String formatMessage(String m) {
+    public static String formatMessage(String m) {
 	return m.replaceAll("\\[time\\]", ((long) (new Date()).getTime() / 1000) + "")
 	    .replaceAll("\\[onlineTime\\]", ((long) onlineTime) + "")
-	    .replaceAll("\\[offlineTime\\]", ((long) offlineTime) + "");
+	    .replaceAll("\\[offlineTime\\]", ((long) offlineTime) + "")
+	    .replaceAll("\\[playerName\\]", playerName);
     }
 	
     @EventHandler
@@ -127,6 +137,8 @@ public class Main {
 	    return;
 	}
 	allowMethods("PATCH", "DELETE");
+	FMLCommonHandler.instance().bus().register(new FMLEvents());
+	
 	this.config = new Configuration(e.getSuggestedConfigurationFile());
 	this.config.load();
 		
@@ -135,6 +147,8 @@ public class Main {
 	this.sendMessageOnBoot = this.config.getBoolean("enabled", "2_onStart", true, "Send a message to Discord when the server is fully loaded.");
 	this.sendMessageOnShuttingDown = this.config.getBoolean("enabled", "3_onStopping", false, "Send a message to Discord when the server is stopping.");
 	this.sendMessageOnShutDown = this.config.getBoolean("enabled", "4_onStopped", true, "Send a message to Discord when the server is fully stopped.");
+	this.sendMessageOnJoin = this.config.getBoolean("enabled", "5_onJoin", true, "Send a message to Discord when a player joins.");
+	this.sendMessageOnLeave = this.config.getBoolean("enabled", "6_onLeave", true, "Send a message to Discord when a player leaves.");
 		
 	this.loadingMessage = this.config.getString("messageJSON",
 						    "1_onStarting",
@@ -151,6 +165,14 @@ public class Main {
 	this.shutMessage = this.config.getString("messageJSON",
 						 "4_onStopped",
 						 "{\"content\":null,\"embeds\":[{\"title\":\"Server is Offline!\",\"description\":\"The Minecraft server is offline!\\n\\nLast time online: <t:[onlineTime]:d> <t:[onlineTime]:T>\",\"color\":16719390}],\"attachments\":[]}",
+						 "The message to be sent.");
+	this.joinMessage = this.config.getString("messageJSON",
+						 "5_onJoin",
+						 "{\"content\":null,\"embeds\":[{\"title\":\"[playerName] joined\",\"color\":4558592}],\"attachments\":[]}",
+						 "The message to be sent.");
+	this.leaveMessage = this.config.getString("messageJSON",
+						 "6_onLeave",
+						 "{\"content\":null,\"embeds\":[{\"title\":\"[playerName] left\",\"color\":16719390}],\"attachments\":[]}",
 						 "The message to be sent.");
 		
 	this.webhook = this.config.getString("webhook", "0_general", "YOURWEBHOOKHERE", "The link with the token of the webhook (don't give other people the link you'll paste here).");
@@ -177,12 +199,12 @@ public class Main {
     }
 
 
-    private long trySend(String message) {
+    private static long trySend(String message) {
 	long id = 0;
 	try {
-	    id = send(this.username, this.avatarUrl, "POST", this.webhook, this.formatMessage(message));
+	    id = send(username, avatarUrl, "POST", webhook, formatMessage(message));
 	} catch(IOException ex) {
-	    Logger.error("Coulnd't send the message! Body: " + this.messageL + ", error:");
+	    Logger.error("Coulnd't send the message! Body: " + messageL + ", error:");
 	    ex.printStackTrace();
 	}
 	return id;
@@ -269,6 +291,26 @@ public class Main {
 		this.doPingMessage(this.shutPingMessage, this.shutPingMessageWait);
 	    }
 	}
+    }
+
+    // mostly copied from nilcord
+    public static final class FMLEvents {
+        @SubscribeEvent
+        public void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
+            if (event.player instanceof EntityPlayerMP player
+		&& sendMessageOnJoin) {
+		playerName = player.getGameProfile().getName();
+                trySend(joinMessage);
+            }
+        }
+        @SubscribeEvent
+        public void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
+            if (event.player instanceof EntityPlayerMP player
+		&& sendMessageOnLeave) {
+		playerName = player.getGameProfile().getName();
+                trySend(leaveMessage);
+            }
+        }
     }
 	
     private static void allowMethods(String... methods) {
