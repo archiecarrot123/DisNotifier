@@ -175,57 +175,63 @@ public class Main {
 		
 	if (this.config.hasChanged()) this.config.save();
     }
-	
-    @EventHandler
-    public void serverStrarting(FMLServerStartingEvent e) throws InterruptedException {
-	if (e.getSide() == Side.SERVER && this.sendMessageOnBooting) {
-	    if (this.messageID < 1 || !this.editSended) {
-		long id = 0;
-		try {
-		    id = send(this.username, this.avatarUrl, "POST", this.webhook, this.formatMessage(this.loadingMessage));
-		} catch(IOException ex) {
-		    Logger.error("Coulnd't send the message! Body: " + this.messageL + ", error:");
-		    ex.printStackTrace();
-		}
+
+
+    private long trySend(String message) {
+	long id = 0;
+	try {
+	    id = send(this.username, this.avatarUrl, "POST", this.webhook, this.formatMessage(message));
+	} catch(IOException ex) {
+	    Logger.error("Coulnd't send the message! Body: " + this.messageL + ", error:");
+	    ex.printStackTrace();
+	}
+	return id;
+    }
+
+    private void sendOrEdit(String message) {
+	if (this.messageID < 1 || !this.editSended) {
+	    long id = this.trySend(message);
+	    if (this.editSended) {
+		this.messageID = id;
+		this.config.getCategory("0_general").get("messageID").set(id + "");
+		this.config.save();
+	    }
+	} else {
+	    try {
+		send(this.username, this.avatarUrl, "PATCH", this.webhook + "/messages/" + this.messageID, this.formatMessage(message));
+	    } catch(Exception ex) {
+		long id = this.trySend(message);
 		if (this.editSended) {
+		    // it should be easy to prove that this path will always be taken, but also i'm tired
 		    this.messageID = id;
 		    this.config.getCategory("0_general").get("messageID").set(id + "");
 		    this.config.save();
 		}
-	    } else {
-		try {
-		    send(this.username, this.avatarUrl, "PATCH", this.webhook + "/messages/" + this.messageID, this.formatMessage(this.loadingMessage));
-		} catch(Exception ex) {
-		    long id = 0;
-		    try {
-			id = send(this.username, this.avatarUrl, "POST", this.webhook, this.formatMessage(this.loadingMessage));
-		    } catch(IOException exx) {
-			Logger.error("Coulnd't send the message! Body: " + this.messageL + ", error:");
-			exx.printStackTrace();
-		    }
-		    if (this.editSended) {
-			this.messageID = id;
-			this.config.getCategory("0_general").get("messageID").set(id + "");
-			this.config.save();
-		    }
-		}
 	    }
-			
-	    if (this.sendLoadingPingMessage && this.loadingPingMessage != "" && this.loadingPingMessageWait > 0) {
-		long id = 0;
-		try {
-		    id = send(this.username, this.avatarUrl, "POST", this.webhook, this.formatMessage(this.loadingPingMessage));
-		} catch(IOException ex) {
-		    Logger.error("Coulnd't send the message! Body: " + this.messageL + ", error:");
-		    ex.printStackTrace();
-		}
-		Thread.sleep(this.loadingPingMessageWait);
-		try {
-		    send("", "", "DELETE", this.webhook + "/messages/" + id, "");
-		} catch(IOException ex) {
-		    Logger.error("Coulnd't delete the message! Body: " + this.messageL + ", error:");
-		    ex.printStackTrace();
-		}
+	}
+    }
+    
+    private void doPingMessage(String pingMessage, int pingMessageWait) throws InterruptedException {
+	if (pingMessage == "" || pingMessageWait <= 0) {
+	    return;
+	}
+	long id = this.trySend(pingMessage);
+	Thread.sleep(pingMessageWait);
+	try {
+	    send("", "", "DELETE", this.webhook + "/messages/" + id, "");
+	} catch(IOException ex) {
+	    Logger.error("Coulnd't delete the message! Body: " + this.messageL + ", error:");
+	    ex.printStackTrace();
+	}
+    }
+	
+    @EventHandler
+    public void serverStrarting(FMLServerStartingEvent e) throws InterruptedException {
+	if (e.getSide() == Side.SERVER && this.sendMessageOnBooting) {
+	    this.sendOrEdit(this.loadingMessage);
+	    
+	    if (this.sendLoadingPingMessage) {
+		this.doPingMessage(this.loadingPingMessage, this.loadingPingMessageWait);
 	    }
 	}
     }
@@ -234,53 +240,10 @@ public class Main {
     public void serverStrarted(FMLServerStartedEvent e) throws InterruptedException {
 	if (e.getSide() == Side.SERVER && this.sendMessageOnBoot) {
 	    this.onlineTime = Math.floor(((new Date()).getTime() / 1000));
-	    if (this.messageID < 1 || !this.editSended) {
-		long id = 0;
-		try {
-		    id = send(this.username, this.avatarUrl, "POST", this.webhook, this.formatMessage(this.loadedMessage));
-		} catch(IOException ex) {
-		    Logger.error("Coulnd't send the message! Body: " + this.messageL + ", error:");
-		    ex.printStackTrace();
-		}
-		if (this.editSended) {
-		    this.messageID = id;
-		    this.config.getCategory("0_general").get("messageID").set(id + "");
-		    this.config.save();
-		}
-	    } else {
-		try {
-		    send(this.username, this.avatarUrl, "PATCH", this.webhook + "/messages/" + this.messageID, this.formatMessage(this.loadedMessage));
-		} catch(Exception ex) {
-		    long id = 0;
-		    try {
-			id = send(this.username, this.avatarUrl, "POST", this.webhook, this.formatMessage(this.loadedMessage));
-		    } catch(IOException exx) {
-			Logger.error("Coulnd't send the message! Body: " + this.messageL + ", error:");
-			exx.printStackTrace();
-		    }
-		    if (this.editSended) {
-			this.messageID = id;
-			this.config.getCategory("0_general").get("messageID").set(id + "");
-			this.config.save();
-		    }
-		}
-	    }
-			
-	    if (this.sendLoadedPingMessage && this.loadedPingMessage != "" && this.loadedPingMessageWait > 0) {
-		long id = 0;
-		try {
-		    id = send(this.username, this.avatarUrl, "POST", this.webhook, this.formatMessage(this.loadedPingMessage));
-		} catch(IOException ex) {
-		    Logger.error("Coulnd't send the message! Body: " + this.messageL + ", error:");
-		    ex.printStackTrace();
-		}
-		Thread.sleep(this.loadedPingMessageWait);
-		try {
-		    send("", "", "DELETE", this.webhook + "/messages/" + id, "");
-		} catch (IOException ex) {
-		    Logger.error("Coulnd't delete the message! Body: " + this.messageL + ", error:");
-		    ex.printStackTrace();
-		}
+	    this.sendOrEdit(this.loadedMessage);
+	    
+	    if (this.sendLoadedPingMessage) {
+		this.doPingMessage(this.loadedPingMessage, this.loadedPingMessageWait);
 	    }
 	}
     }
@@ -288,53 +251,10 @@ public class Main {
     @EventHandler
     public void serverStopping(FMLServerStoppingEvent e) throws InterruptedException {
 	if (e.getSide() == Side.SERVER && this.sendMessageOnShuttingDown) {
-	    if (this.messageID < 1 || !this.editSended) {
-		long id = 0;
-		try {
-		    id = send(this.username, this.avatarUrl, "POST", this.webhook, this.formatMessage(this.shuttingMessage));
-		} catch(IOException ex) {
-		    Logger.error("Coulnd't send the message! Body: " + this.messageL + ", error:");
-		    ex.printStackTrace();
-		}
-		if (this.editSended) {
-		    this.messageID = id;
-		    this.config.getCategory("0_general").get("messageID").set(id + "");
-		    this.config.save();
-		}
-	    } else {
-		try {
-		    send(this.username, this.avatarUrl, "PATCH", this.webhook + "/messages/" + this.messageID, this.formatMessage(this.shuttingMessage));
-		} catch(Exception ex) {
-		    long id = 0;
-		    try {
-			id = send(this.username, this.avatarUrl, "POST", this.webhook, this.formatMessage(this.shuttingMessage));
-		    } catch(IOException exx) {
-			Logger.error("Coulnd't send the message! Body: " + this.messageL + ", error:");
-			exx.printStackTrace();
-		    }
-		    if (this.editSended) {
-			this.messageID = id;
-			this.config.getCategory("0_general").get("messageID").set(id + "");
-			this.config.save();
-		    }
-		}
-	    }
-			
-	    if (this.sendShuttingPingMessage && this.shuttingPingMessage != "" && this.shuttingPingMessageWait > 0) {
-		long id = 0;
-		try {
-		    id = send(this.username, this.avatarUrl, "POST", this.webhook, this.formatMessage(this.shuttingPingMessage));
-		} catch(IOException ex) {
-		    Logger.error("Coulnd't send the message! Body: " + this.messageL + ", error:");
-		    ex.printStackTrace();
-		}
-		Thread.sleep(this.shuttingPingMessageWait);
-		try {
-		    send("", "", "DELETE", this.webhook + "/messages/" + id, "");
-		} catch (IOException ex) {
-		    Logger.error("Coulnd't delete the message! Body: " + this.messageL + ", error:");
-		    ex.printStackTrace();
-		}
+	    this.sendOrEdit(this.shuttingMessage);
+	    
+	    if (this.sendShuttingPingMessage) {
+		this.doPingMessage(this.shuttingPingMessage, this.shuttingPingMessageWait);
 	    }
 	}
     }
@@ -343,53 +263,10 @@ public class Main {
     public void serverStopped(FMLServerStoppedEvent e) throws InterruptedException {
 	if (e.getSide() == Side.SERVER && this.sendMessageOnShutDown) {
 	    this.offlineTime = Math.floor(((new Date()).getTime() / 1000));
-	    if (this.messageID < 1 || !this.editSended) {
-		long id = 0;
-		try {
-		    id = send(this.username, this.avatarUrl, "POST", this.webhook, this.formatMessage(this.shutMessage));
-		} catch(IOException ex) {
-		    Logger.error("Coulnd't send the message! Body: " + this.messageL + ", error:");
-		    ex.printStackTrace();
-		}
-		if (this.editSended) {
-		    this.messageID = id;
-		    this.config.getCategory("0_general").get("messageID").set(id + "");
-		    this.config.save();
-		}
-	    } else {
-		try {
-		    send(this.username, this.avatarUrl, "PATCH", this.webhook + "/messages/" + this.messageID, this.formatMessage(this.shutMessage));
-		} catch(Exception ex) {
-		    long id = 0;
-		    try {
-			id = send(this.username, this.avatarUrl, "POST", this.webhook, this.formatMessage(this.shutMessage));
-		    } catch(IOException exx) {
-			Logger.error("Coulnd't send the message! Body: " + this.messageL + ", error:");
-			exx.printStackTrace();
-		    }
-		    if (this.editSended) {
-			this.messageID = id;
-			this.config.getCategory("0_general").get("messageID").set(id + "");
-			this.config.save();
-		    }
-		}
-	    }
-			
-	    if (this.sendShutPingMessage && this.shutPingMessage != "" && this.shutPingMessageWait > 0) {
-		long id = 0;
-		try {
-		    id = send(this.username, this.avatarUrl, "POST", this.webhook, this.formatMessage(this.shutPingMessage));
-		} catch(IOException ex) {
-		    Logger.error("Coulnd't send the message! Body: " + this.messageL + ", error:");
-		    ex.printStackTrace();
-		}
-		Thread.sleep(this.shutPingMessageWait);
-		try {
-		    send("", "", "DELETE", this.webhook + "/messages/" + id, "");
-		} catch (IOException ex) {
-		    Logger.error("Coulnd't delete the message! Body: " + this.messageL + ", error:");
-		    ex.printStackTrace();
-		}
+	    this.sendOrEdit(this.shutMessage);
+	    
+	    if (this.sendShutPingMessage) {
+		this.doPingMessage(this.shutPingMessage, this.shutPingMessageWait);
 	    }
 	}
     }
