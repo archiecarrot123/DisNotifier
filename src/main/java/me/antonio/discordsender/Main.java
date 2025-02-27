@@ -66,18 +66,18 @@ public class Main {
     public static Boolean editSended;
     public static long messageID;
 	
-    public Boolean sendLoadingPingMessage;
-    public String loadingPingMessage;
-    public int loadingPingMessageWait;
-    public Boolean sendLoadedPingMessage;
-    public String loadedPingMessage;
-    public int loadedPingMessageWait;
-    public Boolean sendShuttingPingMessage;
-    public String shuttingPingMessage;
-    public int shuttingPingMessageWait;
-    public Boolean sendShutPingMessage;
-    public String shutPingMessage;
-    public int shutPingMessageWait;
+    public static Boolean sendLoadingPingMessage;
+    public static String loadingPingMessage;
+    public static int loadingPingMessageWait;
+    public static Boolean sendLoadedPingMessage;
+    public static String loadedPingMessage;
+    public static int loadedPingMessageWait;
+    public static Boolean sendShuttingPingMessage;
+    public static String shuttingPingMessage;
+    public static int shuttingPingMessageWait;
+    public static Boolean sendShutPingMessage;
+    public static String shutPingMessage;
+    public static int shutPingMessageWait;
 	
     public static double onlineTime = 0;
     public static double offlineTime = 0;
@@ -95,9 +95,9 @@ public class Main {
 		con.setDoOutput(true);
 		OutputStream os = con.getOutputStream();
 		messageL = ("{"
-				 + (username.trim().length() > 0 ? "\"username\":\"" + username + "\"," : "")
-				 + (avatar.trim().length() > 0 ? "\"avatar_url\":\"" + avatar + "\"," : "")
-				 + message.trim().substring(1));
+			    + (username.trim().length() > 0 ? "\"username\":\"" + username + "\"," : "")
+			    + (avatar.trim().length() > 0 ? "\"avatar_url\":\"" + avatar + "\"," : "")
+			    + message.trim().substring(1));
 		os.write(messageL.getBytes(StandardCharsets.UTF_8));
 		os.flush();
 		os.close();
@@ -114,7 +114,7 @@ public class Main {
 	    if ((199 < rc) && (rc < 300)) {
 		return method != "DELETE" ? Long.parseLong(out.toString().split("\"id\":\"")[1].split("\"")[0]) : 0; // This is my best method on how to get the ID without parsing the entire JSON string.
 	    } else {
-		Logger.error("Coulnd't send the message! Code: " + rc + ", error:\n", out);
+		Logger.error("Couldn't send the message! Code: " + rc + ", error:\n", out);
 	    }
 			
 	} catch (MalformedURLException e) {
@@ -204,7 +204,7 @@ public class Main {
 	try {
 	    id = send(username, avatarUrl, "POST", webhook, formatMessage(message));
 	} catch(IOException ex) {
-	    Logger.error("Coulnd't send the message! Body: " + messageL + ", error:");
+	    Logger.error("Couldn't send the message! Body: " + messageL + ", error:");
 	    ex.printStackTrace();
 	}
 	return id;
@@ -242,7 +242,7 @@ public class Main {
 	try {
 	    send("", "", "DELETE", this.webhook + "/messages/" + id, "");
 	} catch(IOException ex) {
-	    Logger.error("Coulnd't delete the message! Body: " + this.messageL + ", error:");
+	    Logger.error("Couldn't delete the message! Body: " + this.messageL + ", error:");
 	    ex.printStackTrace();
 	}
     }
